@@ -2,7 +2,7 @@ services:
   - type: web
     name: stia
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
