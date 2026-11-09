@@ -1,1 +1,74 @@
-<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#090a14"/><title>INFINITY — AI Video Studio</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050713"><title>STIA — AI Creative Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#050713;--panel:rgba(12,18,43,.82);--line:rgba(80,175,255,.42);--text:#f2f5ff;--muted:#9aa8c8;--cyan:#37c8ff;--pink:#ff547c}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:16px/1.5 Outfit,system-ui,sans-serif}
+#space{position:fixed;inset:0;width:100%;height:100%;z-index:-1;background:radial-gradient(ellipse at 15% 15%,#17245c 0,transparent 42%),radial-gradient(ellipse at 85% 80%,#092c49 0,transparent 45%),#050713}
+main{width:min(760px,calc(100% - 28px));margin:0 auto;padding:clamp(32px,9vh,90px) 0 42px}
+.brand{text-align:center;margin-bottom:26px}.brand small{color:var(--cyan);letter-spacing:.42em;font-size:.72rem;font-weight:700}.brand h1{font-size:clamp(2.2rem,8vw,4.2rem);line-height:1;margin:10px 0;background:linear-gradient(90deg,#fff,#7ddcff,#ff7ca0);background-clip:text;color:transparent;letter-spacing:.08em}.brand p{color:var(--muted);margin:0}
+.panel{border:1px solid var(--line);border-radius:26px;background:var(--panel);backdrop-filter:blur(18px);padding:20px;box-shadow:0 0 55px #168bd522}
+textarea{width:100%;resize:vertical;min-height:112px;background:transparent;border:0;color:var(--text);font:500 1.22rem Outfit;outline:0;padding:6px}textarea::placeholder{color:#7180a3}
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;border-top:1px solid #ffffff18;padding-top:15px}
+button,select,.upload{font:inherit;color:var(--text);border:1px solid #ffffff26;background:#101a3b;border-radius:999px;padding:10px 15px;cursor:pointer}
+button:hover,.upload:hover{border-color:var(--cyan)}button.active{background:#153e59;border-color:var(--cyan)}
+#generate{margin-left:auto;background:linear-gradient(110deg,#087db5,#8744a9);border:0;font-weight:800;padding:12px 24px}
+#generate:disabled{opacity:.55;cursor:wait}
+.options{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+label.field{display:grid;gap:6px;color:var(--muted);font-size:.85rem}select{width:100%;border-radius:12px}
+#file{display:none}.file-name{font-size:.8rem;color:var(--cyan);margin-top:8px}
+.examples{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0}.examples button{font-size:.85rem;color:#cbd7f3;padding:7px 12px}
+#status{min-height:28px;text-align:center;color:#85dfff;margin:14px 0}#status.error{color:#ff9ba8}
+#result{margin:12px auto 0;max-width:760px;text-align:center}#result img,#result video{width:100%;border-radius:18px;border:1px solid var(--line);background:#000}#result a{display:inline-block;color:#7ddcff;margin:12px}
+footer{text-align:center;color:#637091;font-size:.75rem;margin-top:36px}
+@media(max-width:520px){main{padding-top:34px}.panel{padding:14px}.toolbar button,.upload{padding:9px 11px;font-size:.9rem}#generate{margin-left:0;flex:1}}
+</style></head>
+<body><canvas id="space"></canvas><main>
+<header class="brand"><small>AI CREATIVE LAB</small><h1>STIA</h1><p>Transforme tes idées en images et vidéos.</p></header>
+<section class="panel">
+<textarea id="prompt" maxlength="1800" placeholder="Décris ce que tu veux créer… Exemple : un astronaute qui marche dans une forêt lumineuse, style cinématique."></textarea>
+<div class="toolbar">
+<button id="kind" class="active" type="button">Image</button>
+<button id="ratio" type="button">Vertical 9:16</button>
+<label class="upload" for="file">＋ Ajouter une photo</label><input id="file" type="file" accept="image/png,image/jpeg,image/webp">
+<button id="demo" type="button">Démo : oui</button>
+<button id="generate" type="button">✦ Générer</button>
+</div>
+<div class="file-name" id="fileName">Aucune photo ajoutée</div>
+<div class="options">
+<label class="field">Style<select id="style"><option value="">Naturel</option><option value="cinematic lighting, film still, highly detailed">Cinématique</option><option value="professional studio photography, soft light">Photo studio</option><option value="premium advertising photography">Publicité</option><option value="anime illustration, detailed">Anime</option><option value="3D animated film style">Animation 3D</option><option value="minimal vector illustration">Illustration</option></select></label>
+<label class="field" id="modelField">Modèle vidéo<select id="videoModel"><option value="fal-ai/hunyuan-video">Hunyuan — texte vers vidéo</option><option value="bytedance/seedance-2.0/image-to-video">Seedance — photo vers vidéo</option></select></label>
+<label class="field" id="soundField" hidden>Audio<select id="sound"><option value="false">Sans audio</option><option value="true">Avec audio (si pris en charge)</option></select></label>
+</div></section>
+<div class="examples"><button data-p="Un portrait photo réaliste, lumière douce, arrière-plan élégant">Portrait</button><button data-p="Une ville futuriste sous la pluie, néons, ambiance cinéma">Ville futuriste</button><button data-p="Un paysage de montagne au lever du soleil, ultra détaillé">Paysage</button><button data-p="Une affiche publicitaire moderne et luxueuse pour un parfum">Affiche</button></div>
+<div id="status" role="status" aria-live="polite">Prêt à créer.</div><div id="result"></div>
+<footer>STIA · Ton atelier de création IA</footer></main>
+<script>
+const $=id=>document.getElementById(id);let kind="image",ratio=0,demo=true,file=null;
+const ratios=["Vertical 9:16","Carré 1:1","Horizontal 16:9"];
+$("kind").onclick=()=>{kind=kind==="image"?"video":"image";$("kind").textContent=kind==="image"?"Image":"Vidéo";$("modelField").hidden=kind==="image";$("soundField").hidden=kind==="image";$("kind").classList.toggle("active",kind==="image");};
+$("ratio").onclick=()=>{ratio=(ratio+1)%3;$("ratio").textContent=ratios[ratio];};
+$("demo").onclick=()=>{demo=!demo;$("demo").textContent="Démo : "+(demo?"oui":"non");$("demo").classList.toggle("active",demo);};
+$("file").onchange=e=>{file=e.target.files[0]||null;$("fileName").textContent=file?file.name:"Aucune photo ajoutée";if(file&&file.size>12*1024*1024){file=null;e.target.value="";$("fileName").textContent="Photo trop lourde (maximum 12 Mo)";}};
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{$("prompt").value=b.dataset.p;$("prompt").focus();});
+function dataUrl(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f);});}
+$("generate").onclick=async()=>{
+ const prompt=$("prompt").value.trim();if(!prompt){$("status").textContent="Écris une description avant de générer."; $("status").className="error";return;}
+ if(demo){$("result").innerHTML="";const card=document.createElement("div");card.style.cssText="padding:70px 20px;border-radius:18px;background:radial-gradient(circle at 30% 20%,#316aa5,#171331 55%,#090b18);border:1px solid #37c8ff66;font-size:1.2rem";card.textContent="✨ Mode démo — désactive « Démo » pour lancer une vraie génération."; $("result").append(card);$("status").textContent="Aperçu de démonstration.";return;}
+ $("generate").disabled=true;$("status").className="";$("status").textContent="Envoi à fal.ai… la génération peut prendre un moment.";$("result").innerHTML="";
+ try{
+  const body={kind,prompt:[prompt,$("style").value].filter(Boolean).join(", "),ratio:["portrait_16_9","square","landscape_16_9"][ratio],model:$("videoModel").value,sound:$("sound").value==="true"};
+  if(file){body.image=await dataUrl(file);body.imageMime=file.type;}
+  const response=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||"La génération a échoué.");
+  const media=kind==="image"?data.image:data.video;if(!media)throw new Error("fal.ai n’a pas retourné de média.");
+  const el=document.createElement(kind==="image"?"img":"video");el.src=media; if(kind==="video"){el.controls=true;el.playsInline=true;el.autoplay=true;el.loop=true;}else el.alt=prompt;
+  $("result").append(el);const a=document.createElement("a");a.href=media;a.target="_blank";a.rel="noopener";a.download=kind==="image"?"stia-image.png":"stia-video.mp4";a.textContent="Télécharger le résultat";$("result").append(a);$("status").textContent="Création terminée !";
+ }catch(e){$("status").className="error";$("status").textContent=e.message||"Erreur inconnue.";}finally{$("generate").disabled=false;}
+};
+$("modelField").hidden=true;$("soundField").hidden=true;$("demo").classList.add("active");
+const c=$("space"),ctx=c.getContext("2d");let stars=[];function resize(){c.width=innerWidth*devicePixelRatio;c.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);stars=Array.from({length:Math.min(180,Math.floor(innerWidth/5))},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.4+.2,a:Math.random()}));}function draw(){ctx.clearRect(0,0,innerWidth,innerHeight);for(const s of stars){s.a+=.012;ctx.globalAlpha=.25+.55*(.5+.5*Math.sin(s.a));ctx.fillStyle="#b8e9ff";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();}requestAnimationFrame(draw);}addEventListener("resize",resize);resize();draw();
+</script></body></html>
