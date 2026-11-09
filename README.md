@@ -13,7 +13,7 @@ Application web française de création d’images et de vidéos avec fal.ai.
 1. Installer Node.js 20 ou plus récent.
 2. Lancer `npm install`.
 3. Définir la variable d’environnement `FAL_KEY` dans le terminal ou dans un fichier `.env` local non versionné.
-4. Lancer `npm start` pour servir l’application après compilation, ou `npm run dev` pour lancer Vite.
+4. Lancer `npm start` pour servir l’application après compilation.
 
 Pour compiler : `npm run build`.
 
