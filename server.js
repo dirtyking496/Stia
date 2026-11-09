@@ -2,9 +2,11 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fal } from "@fal-ai/client";
+import { rateLimit } from "express-rate-limit";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "18mb" }));
 
 if (process.env.FAL_KEY) {
@@ -34,7 +36,15 @@ async function uploadImage(dataUrl, mimeType) {
   return fal.storage.upload(new Blob([bytes], { type: actualMime }));
 }
 
-app.post("/api/generate", async (req, res) => {
+const generationLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 8,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Limite de créations atteinte. Réessaie dans quelques minutes." }
+});
+
+app.post("/api/generate", generationLimiter, async (req, res) => {
   if (!process.env.FAL_KEY) {
     return res.status(503).json({ error: "La clé FAL_KEY n’est pas configurée dans les variables d’environnement Render." });
   }
