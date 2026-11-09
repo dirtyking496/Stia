@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: stia
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: FAL_KEY
+        sync: false
