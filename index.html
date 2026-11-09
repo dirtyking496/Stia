@@ -64,7 +64,19 @@ $("generate").onclick=async()=>{
   if(file){body.image=await dataUrl(file);body.imageMime=file.type;}
   const response=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   const data=await response.json();if(!response.ok)throw new Error(data.error||"La génération a échoué.");
-  const media=kind==="image"?data.image:data.video;if(!media)throw new Error("fal.ai n’a pas retourné de média.");
+  if(!data.requestId||!data.endpoint)throw new Error("fal.ai n’a pas accepté la demande.");
+  let media=null;
+  const deadline=Date.now()+12*60*1000;
+  while(Date.now()<deadline){
+    await new Promise(resolve=>setTimeout(resolve,4000));
+    $("status").textContent="Génération en cours… STIA attend le résultat de fal.ai.";
+    const check=await fetch(`/api/status/${kind}/${encodeURIComponent(data.requestId)}?endpoint=${encodeURIComponent(data.endpoint)}`);
+    const progress=await check.json();
+    if(!check.ok)throw new Error(progress.error||"Impossible de suivre la génération.");
+    if(progress.status==="COMPLETED"){media=kind==="image"?progress.image:progress.video;break;}
+    if(progress.status==="FAILED")throw new Error(progress.error||"La génération a échoué chez fal.ai.");
+  }
+  if(!media)throw new Error("La génération prend trop de temps. Réessaie dans un instant.");
   const el=document.createElement(kind==="image"?"img":"video");el.src=media; if(kind==="video"){el.controls=true;el.playsInline=true;el.autoplay=true;el.loop=true;}else el.alt=prompt;
   $("result").append(el);const a=document.createElement("a");a.href=media;a.target="_blank";a.rel="noopener";a.download=kind==="image"?"stia-image.png":"stia-video.mp4";a.textContent="Télécharger le résultat";$("result").append(a);$("status").textContent="Création terminée !";
  }catch(e){$("status").className="error";$("status").textContent=e.message||"Erreur inconnue.";}finally{$("generate").disabled=false;}
