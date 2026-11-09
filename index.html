@@ -40,7 +40,7 @@ footer{text-align:center;color:#637091;font-size:.75rem;margin-top:36px}
 <div class="file-name" id="fileName">Aucune photo ajoutée</div>
 <div class="options">
 <label class="field">Style<select id="style"><option value="">Naturel</option><option value="cinematic lighting, film still, highly detailed">Cinématique</option><option value="professional studio photography, soft light">Photo studio</option><option value="premium advertising photography">Publicité</option><option value="anime illustration, detailed">Anime</option><option value="3D animated film style">Animation 3D</option><option value="minimal vector illustration">Illustration</option></select></label>
-<label class="field" id="modelField">Modèle vidéo<select id="videoModel"><option value="fal-ai/hunyuan-video">Hunyuan — texte vers vidéo</option><option value="bytedance/seedance-2.0/image-to-video">Seedance — animer une photo</option></select></label>
+<label class="field" id="modelField">Modèle vidéo<select id="videoModel"><option value="fal-ai/hunyuan-video">Hunyuan — texte vers vidéo</option><option value="bytedance/seedance-2.0/us/image-to-video">Seedance — animer une photo</option></select></label>
 <label class="field" id="soundField" hidden>Audio<select id="sound"><option value="false">Sans audio</option><option value="true">Avec audio (si pris en charge)</option></select></label>
 </div></section>
 <div class="examples"><button data-p="Un portrait photo réaliste, lumière douce, arrière-plan élégant">Portrait</button><button data-p="Une ville futuriste sous la pluie, néons, ambiance cinéma">Ville futuriste</button><button data-p="Un paysage de montagne au lever du soleil, ultra détaillé">Paysage</button><button data-p="Une affiche publicitaire moderne et luxueuse pour un parfum">Affiche</button></div>
@@ -63,7 +63,7 @@ $("generate").onclick=async()=>{
   const body={kind,prompt:[prompt,$("style").value].filter(Boolean).join(", "),ratio:["portrait_16_9","square","landscape_16_9"][ratio],model:$("videoModel").value,sound:$("sound").value==="true"};
   if(file){body.image=await dataUrl(file);body.imageMime=file.type;}
   const response=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-  const data=await response.json();if(!response.ok)throw new Error(data.error||"La génération a échoué.");
+  const data=await response.json().catch(()=>({error:`Réponse invalide du serveur (HTTP ${response.status}).`}));if(!response.ok)throw new Error(typeof data.error==="string"?data.error:`Échec fal.ai (HTTP ${response.status}). Vérifie FAL_KEY et le solde fal.ai.`);
   if(!data.requestId||!data.endpoint)throw new Error("fal.ai n’a pas accepté la demande.");
   let media=null;
   const deadline=Date.now()+12*60*1000;
@@ -71,8 +71,8 @@ $("generate").onclick=async()=>{
     await new Promise(resolve=>setTimeout(resolve,4000));
     $("status").textContent="Génération en cours… STIA attend le résultat de fal.ai.";
     const check=await fetch(`/api/status/${kind}/${encodeURIComponent(data.requestId)}?endpoint=${encodeURIComponent(data.endpoint)}`);
-    const progress=await check.json();
-    if(!check.ok)throw new Error(progress.error||"Impossible de suivre la génération.");
+    const progress=await check.json().catch(()=>({error:`Réponse de suivi invalide (HTTP ${check.status}).`}));
+    if(!check.ok)throw new Error(typeof progress.error==="string"?progress.error:`Suivi fal.ai impossible (HTTP ${check.status}).`);
     if(progress.status==="COMPLETED"){media=kind==="image"?progress.image:progress.video;break;}
     if(progress.status==="FAILED")throw new Error(progress.error||"La génération a échoué chez fal.ai.");
   }
