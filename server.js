@@ -18,7 +18,7 @@ const ratios = {
   "landscape_16_9": "16:9"
 };
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, falConfigured: Boolean(process.env.FAL_KEY) }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, falConfigured: Boolean(falKey) }));
 
 async function uploadImage(dataUrl, mimeType) {
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
@@ -44,7 +44,7 @@ const generationLimiter = rateLimit({
 });
 
 app.post("/api/generate", generationLimiter, async (req, res) => {
-  if (!process.env.FAL_KEY) {
+  if (!falKey) {
     return res.status(503).json({ error: "La clé FAL_KEY n’est pas configurée dans les variables d’environnement Render." });
   }
 
@@ -104,7 +104,7 @@ const allowedEndpoints = new Set([
 ]);
 
 app.get("/api/status/:kind/:requestId", async (req, res) => {
-  if (!process.env.FAL_KEY) return res.status(503).json({ error: "FAL_KEY non configurée sur Render." });
+  if (!falKey) return res.status(503).json({ error: "FAL_KEY non configurée sur Render." });
   const { kind, requestId } = req.params;
   const endpoint = String(req.query.endpoint || "");
   if (!["image", "video"].includes(kind) || !allowedEndpoints.has(endpoint) || !/^[a-zA-Z0-9-]{8,100}$/.test(requestId)) {
