@@ -60,12 +60,10 @@ app.post("/api/generate", generationLimiter, async (req, res) => {
 
     if (kind === "image") {
       const input = { prompt: prompt.trim(), image_size: ratio, num_images: 1, output_format: "jpeg" };
-      const endpoint = imageUrl ? "fal-ai/flux/dev/image-to-image" : "fal-ai/flux/dev";
+      const endpoint = imageUrl ? "fal-ai/flux-1/dev/image-to-image" : "fal-ai/flux-1/dev";
       if (imageUrl) input.image_url = imageUrl;
-      const result = await fal.subscribe(endpoint, { input });
-      const url = result.data?.images?.[0]?.url;
-      if (!url) throw new Error("Aucune image reçue de fal.ai.");
-      return res.json({ image: url, requestId: result.requestId });
+      const result = await fal.queue.submit(endpoint, { input });
+      return res.json({ requestId: result.request_id, endpoint, kind: "image" });
     }
 
     let endpoint;
@@ -88,14 +86,43 @@ app.post("/api/generate", generationLimiter, async (req, res) => {
       return res.status(400).json({ error: "Modèle vidéo non reconnu." });
     }
 
-    const result = await fal.subscribe(endpoint, { input });
-    const url = result.data?.video?.url;
-    if (!url) throw new Error("Aucune vidéo reçue de fal.ai.");
-    return res.json({ video: url, requestId: result.requestId });
+    const result = await fal.queue.submit(endpoint, { input });
+    return res.json({ requestId: result.request_id, endpoint, kind: "video" });
   } catch (error) {
     console.error("fal generation error:", error);
     const message = error?.body?.detail || error?.message || "Erreur fal.ai pendant la génération.";
     return res.status(502).json({ error: String(message).slice(0, 500) });
+  }
+});
+
+
+const allowedEndpoints = new Set([
+  "fal-ai/flux-1/dev",
+  "fal-ai/flux-1/dev/image-to-image",
+  "fal-ai/hunyuan-video",
+  "bytedance/seedance-2.0/image-to-video"
+]);
+
+app.get("/api/status/:kind/:requestId", async (req, res) => {
+  if (!process.env.FAL_KEY) return res.status(503).json({ error: "FAL_KEY non configurée sur Render." });
+  const { kind, requestId } = req.params;
+  const endpoint = String(req.query.endpoint || "");
+  if (!["image", "video"].includes(kind) || !allowedEndpoints.has(endpoint) || !/^[a-zA-Z0-9-]{8,100}$/.test(requestId)) {
+    return res.status(400).json({ error: "Requête de suivi invalide." });
+  }
+  try {
+    const status = await fal.queue.status(endpoint, { requestId, logs: false });
+    if (status.status === "COMPLETED") {
+      const result = await fal.queue.result(endpoint, { requestId });
+      const media = kind === "image" ? result.data?.images?.[0]?.url : result.data?.video?.url;
+      if (!media) return res.status(502).json({ error: "fal.ai a terminé sans retourner de média." });
+      return res.json({ status: "COMPLETED", [kind]: media });
+    }
+    if (status.status === "FAILED") return res.status(502).json({ status: "FAILED", error: "fal.ai n’a pas pu terminer cette génération." });
+    return res.json({ status: status.status || "IN_PROGRESS" });
+  } catch (error) {
+    console.error("fal status error:", error);
+    return res.status(502).json({ error: String(error?.message || "Impossible de vérifier la génération.").slice(0, 400) });
   }
 });
 
