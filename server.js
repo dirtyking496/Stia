@@ -19,7 +19,7 @@ const ratios = {
   "landscape_16_9": "16:9"
 };
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, falConfigured: Boolean(process.env.FAL_KEY) }));
 
 async function uploadImage(dataUrl, mimeType) {
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
