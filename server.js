@@ -9,9 +9,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "18mb" }));
 
-if (process.env.FAL_KEY) {
-  fal.config({ credentials: process.env.FAL_KEY });
-}
+const falKey = process.env.FAL_KEY?.trim();
+if (falKey) fal.config({ credentials: falKey });
 
 const ratios = {
   "portrait_16_9": "9:16",
@@ -60,7 +59,7 @@ app.post("/api/generate", generationLimiter, async (req, res) => {
 
     if (kind === "image") {
       const input = { prompt: prompt.trim(), image_size: ratio, num_images: 1, output_format: "jpeg" };
-      const endpoint = imageUrl ? "fal-ai/flux-1/dev/image-to-image" : "fal-ai/flux-1/dev";
+      const endpoint = imageUrl ? "fal-ai/flux/dev/image-to-image" : "fal-ai/flux/dev";
       if (imageUrl) input.image_url = imageUrl;
       const result = await fal.queue.submit(endpoint, { input });
       return res.json({ requestId: result.request_id, endpoint, kind: "image" });
@@ -68,7 +67,7 @@ app.post("/api/generate", generationLimiter, async (req, res) => {
 
     let endpoint;
     let input = { prompt: prompt.trim() };
-    if (model === "bytedance/seedance-2.0/image-to-video") {
+    if (model === "bytedance/seedance-2.0/us/image-to-video") {
       if (!imageUrl) return res.status(400).json({ error: "Pour utiliser Seedance, ajoute une photo à animer." });
       endpoint = model;
       input = {
@@ -90,17 +89,18 @@ app.post("/api/generate", generationLimiter, async (req, res) => {
     return res.json({ requestId: result.request_id, endpoint, kind: "video" });
   } catch (error) {
     console.error("fal generation error:", error);
-    const message = error?.body?.detail || error?.message || "Erreur fal.ai pendant la génération.";
-    return res.status(502).json({ error: String(message).slice(0, 500) });
+    const detail = error?.body?.detail ?? error?.response?.data?.detail ?? error?.message;
+    const message = Array.isArray(detail) ? detail.map(x => x?.msg || x?.message || JSON.stringify(x)).join(" · ") : (typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : "Erreur fal.ai sans détail retourné.");
+    return res.status(502).json({ error: message.slice(0, 700) });
   }
 });
 
 
 const allowedEndpoints = new Set([
-  "fal-ai/flux-1/dev",
-  "fal-ai/flux-1/dev/image-to-image",
+  "fal-ai/flux/dev",
+  "fal-ai/flux/dev/image-to-image",
   "fal-ai/hunyuan-video",
-  "bytedance/seedance-2.0/image-to-video"
+  "bytedance/seedance-2.0/us/image-to-video"
 ]);
 
 app.get("/api/status/:kind/:requestId", async (req, res) => {
@@ -114,7 +114,8 @@ app.get("/api/status/:kind/:requestId", async (req, res) => {
     const status = await fal.queue.status(endpoint, { requestId, logs: false });
     if (status.status === "COMPLETED") {
       const result = await fal.queue.result(endpoint, { requestId });
-      const media = kind === "image" ? result.data?.images?.[0]?.url : result.data?.video?.url;
+      const payload = result?.data ?? result;
+      const media = kind === "image" ? payload?.images?.[0]?.url : payload?.video?.url;
       if (!media) return res.status(502).json({ error: "fal.ai a terminé sans retourner de média." });
       return res.json({ status: "COMPLETED", [kind]: media });
     }
@@ -122,7 +123,9 @@ app.get("/api/status/:kind/:requestId", async (req, res) => {
     return res.json({ status: status.status || "IN_PROGRESS" });
   } catch (error) {
     console.error("fal status error:", error);
-    return res.status(502).json({ error: String(error?.message || "Impossible de vérifier la génération.").slice(0, 400) });
+    const detail = error?.body?.detail ?? error?.response?.data?.detail ?? error?.message;
+    const message = typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : "Impossible de vérifier la génération.";
+    return res.status(502).json({ error: message.slice(0, 700) });
   }
 });
 
